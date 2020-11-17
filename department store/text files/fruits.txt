@@ -1,0 +1,4 @@
+3 4
+4 mango 17 3000
+2 apples 25 4000
+3 oranges 40 5000
