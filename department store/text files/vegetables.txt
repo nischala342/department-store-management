@@ -1,0 +1,4 @@
+3 4
+3 carrots 17 3000
+5 potatoes 25 4000
+4 tomatoes 40 5000
