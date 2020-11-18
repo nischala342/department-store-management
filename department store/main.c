@@ -1,26 +1,27 @@
 #include <stdio.h>
 #include<stdlib.h>
 #include<string.h>
-void MAINMENU ();
+#include<ctype.h>
+int MAINMENU ();
 void ADD ();
 void DELETE ();
+void traverse ();
 void DISPLAYMENU ();
 void DISPLAYBILL ();
 void AddItemsFromCart ();
-void AddItemsFromMenu ();
 void DeleteItemsFromCart ();
-void DeeleteQuantityFromCart ();
+void DeleteQuantityFromCart ();
+
 void userlogin ();
 void subcatmenu ();
 struct cart
 {
   char ProductName[20];		//i added product name here as well as we need it while displaying bill
-  char ProductID[20];
-  int Price;
-  int Quantity;
-  int discount;
-  struct cart *next;
-};
+  int ProductID;
+  int cost;
+  int quantity;
+  struct cart *link;
+} *customer;
 struct items
 {
   int id;
@@ -30,6 +31,7 @@ struct items
   struct items *leftChild;
   struct items *rightChild;
 };
+void AddItemsFromMenu (int, struct items *);
 struct user
 {
   char username[20];
@@ -39,7 +41,7 @@ void
 userlogin (void)
 {
   FILE *fp;
-  char uName[20], pwd[15];
+  char uName[20], pwd[20];
   int i;
   char c;
 
@@ -58,6 +60,8 @@ Authentication:
 	      exit (1);
 	    }
 	}
+      int flag_user = 0;
+      int flag_pass = 0;
       printf ("Username: ");
       scanf ("%s", uName);
       printf ("Password: ");
@@ -66,13 +70,18 @@ Authentication:
 	{
 	  if (strcmp (pUser->username, uName) == 0)
 	    {
-	      printf ("Match username\n");
+	      flag_user = 1;
 	      if (strcmp (pUser->password, pwd) == 0)
 		{
-		  printf ("Match password\n");
+		  flag_pass = 1;
 		  //accessUser();
 		}
 	    }
+	}
+      if (flag_pass != 1 || flag_user != 1)
+	{
+	  printf ("INVALID USERNAME OR PASSWORD!! PLEASE TRY AGAIN!!");
+	  goto Authentication;
 	}
       break;
 
@@ -88,12 +97,12 @@ Authentication:
 		}
 	    }
 	  printf ("Choose A Username: ");
-	  scanf ("%9s", pUser->username);
+	  scanf ("%s", pUser->username);
 	  printf ("Choose A Password: ");
-	  scanf ("%9s", pUser->password);
+	  scanf ("%s", pUser->password);
 	  fwrite (pUser, sizeof (struct user), 1, fp);
-	  printf ("Add another account? (Y/N): ");
-	  scanf (" %c", &c);	//skip leading whitespace
+	  printf ("Add another account? (Y/N):");
+	  scanf ("\n%c", &c);	//skip leading whitespace
 	  fclose (fp);
 	}
       while (c == 'Y' || c == 'y');
@@ -234,13 +243,26 @@ DISPLAYMENU ()
 	  printf
 	    ("TO VIEW COSTS FROM LOWEST TO HIGHEST PRESS 1\nTO VIEW COSTS FROM HIGHEST TO LOWEST PRESS 2\nTO VIEW WITHIN A RANGE PRESS 3\n");
 	  scanf ("%d", &user_choice);
+	  int id;
 	  switch (user_choice)
 	    {
 	    case 1:
 	      inorder (item);
+	      printf ("Enter the id: ");
+	      scanf ("%d", &id);
+	      if (id > 0)
+		{
+		  AddItemsFromMenu (id, item);
+		}
 	      break;
 	    case 2:
 	      reverse_inorder (item);
+	      printf ("Enter the id: ");
+	      scanf ("%d", &id);
+	      if (id > 0)
+		{
+		  AddItemsFromMenu (id, item);
+		}
 	      break;
 	    case 3:
 	      printf ("Enter lower limit\n");
@@ -248,6 +270,12 @@ DISPLAYMENU ()
 	      printf ("Enter upper limit\n");
 	      scanf ("%d", &range_two);
 	      range (range_one, range_two, item);
+	      printf ("Enter the id: ");
+	      scanf ("%d", &id);
+	      if (id > 0)
+		{
+		  AddItemsFromMenu (id, item);
+		}
 	      break;
 	    }
 	}
@@ -255,7 +283,7 @@ DISPLAYMENU ()
     }
 }
 
-void
+int
 MAINMENU ()
 {
   int mainmenu_choice;
@@ -286,18 +314,108 @@ MAINMENU ()
 	}
       DISPLAYBILL ();
     }
+  return 0;
+}
+
+void
+traverse_to_add (int id, int add_quantity)
+{
+  struct cart *temp;
+  temp = customer;
+  while (temp != NULL)
+    {
+      if (temp->ProductID == id)
+	{
+	  temp->quantity += add_quantity;
+	}
+      temp = temp->link;
+    }
 }
 
 void
 AddItemsFromCart ()
 {
-  //returning the updated cart 
+  int add_quantity;
+  int id;
+  traverse ();
+  printf ("Enter the ID of the product for which you want to add: ");
+  scanf ("%d", &id);
+  printf ("Enter the quantity to be added: ");
+  scanf ("%d", &add_quantity);
+  traverse_to_add (id, add_quantity);
+  traverse ();
+
+}
+
+struct items *
+inorder_cart (int id, struct items *root)
+{
+  if (root != NULL)
+    {
+      inorder_cart (id, root->leftChild);
+      if (root->id == id)
+	{
+	  return root;
+	}
+      inorder_cart (id, root->rightChild);
+    }
 }
 
 void
-AddItemsFromMenu ()
+insert_cart (int id, char name[], int quantity, int cost)
 {
+  struct cart *temp = (struct cart *) malloc (sizeof (struct cart));
+  if (customer == NULL)
+    {
+      temp->ProductID = id;
+      strcpy (temp->ProductName, name);
+      temp->cost = cost;
+      temp->quantity = quantity;
+      temp->link = NULL;
+      customer = temp;
+    }
+  else
+    {
+      temp->ProductID = id;
+      strcpy (temp->ProductName, name);
+      temp->cost = cost;
+      temp->quantity = quantity;
+      temp->link = customer;
+      customer = temp;
+    }
+  printf ("Product added to the cart successfully\n");
+}
 
+void
+traverse ()
+{
+  struct cart *temp;
+  temp = customer;
+  printf ("Elements in the linked list are:\n");
+  while (temp != NULL)
+    {
+      printf ("%d %s %d %d\n", temp->ProductID, temp->ProductName,
+	      temp->quantity, temp->cost);
+      temp = temp->link;
+    }
+}
+
+void
+AddItemsFromMenu (int id, struct items *item)
+{
+  int quantity;
+  struct items *temp = inorder_cart (id, item);
+  while (1)
+    {
+      printf ("Enter quantity of the item: ");
+      scanf ("%d", &quantity);
+      if (quantity > 0 && quantity < temp->quantity)
+	{
+	  break;
+	}
+    }
+  insert_cart (temp->id, temp->name, quantity, temp->cost);
+  traverse ();
 }
 
 void
@@ -307,7 +425,7 @@ DeleteItemsFromCart ()
 }
 
 void
-DeeleteQuantityFromCart ()
+DeleteQuantityFromCart ()
 {
 
 }
@@ -327,7 +445,7 @@ ADD ()
 	  AddItemsFromCart ();
 	  break;
 	case 2:
-	  AddItemsFromMenu ();
+	  DISPLAYMENU ();
 	  break;
 	case 3:
 	  return;
@@ -354,7 +472,7 @@ DELETE ()
 	  DeleteItemsFromCart ();
 	  break;
 	case 2:
-	  DeeleteQuantityFromCart ();
+	  DeleteQuantityFromCart ();
 	  break;
 	case 3:
 	  return;
