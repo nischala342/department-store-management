@@ -2,18 +2,6 @@
 #include<stdlib.h>
 #include<string.h>
 #include<ctype.h>
-int MAINMENU ();
-void ADD ();
-void DELETE ();
-void traverse ();
-void DISPLAYMENU ();
-void DISPLAYBILL ();
-void AddItemsFromCart ();
-void DeleteItemsFromCart ();
-void DeleteQuantityFromCart ();
-
-void userlogin ();
-void subcatmenu ();
 struct cart
 {
   char ProductName[20];		//i added product name here as well as we need it while displaying bill
@@ -31,12 +19,80 @@ struct items
   struct items *leftChild;
   struct items *rightChild;
 };
-void AddItemsFromMenu (int, struct items *);
 struct user
 {
   char username[20];
   char password[20];
 } *pUser;
+int MAINMENU ();
+void ADD ();
+void AddItemsFromCart ();
+void AddItemsFromMenu (int, struct items *);
+void traverse_to_add(int,int);
+void insert_cart(int,char[],int,int);
+void DELETE ();
+void DeleteItemsFromCart (int);
+void DeleteQuantityFromCart ();
+void traverse_to_delete(int,int);
+int getIndex(int);
+void traverse ();
+void DISPLAYMENU ();
+struct items* InsertitemMenu(struct items*,int,char*,int,int);
+void reverse_inorder(struct items*);
+void inorder(struct items*);
+struct items* inorder_cart(int,struct items*);
+void range(int,int,struct items*);
+struct items* newNode(int,char*,int,int);
+void subcatmenu ();
+void DISPLAYBILL ();
+void userlogin ();
+void ModifyFile(int,int,int);
+void
+ModifyFile (int findid, int modifyquantity, int flag)
+{
+  FILE *fp;
+  int id, quantity;
+  if (1 <= findid && findid <= 15)
+    {
+      fp = fopen ("fruits.txt", "r+");
+    }
+  else if (16 <= findid && findid <= 30)
+    {
+      fp = fopen ("vegetables.txt", "r+");
+    }
+  else if (31 <= findid && findid <= 45)
+    {
+      fp = fopen ("diary.txt", "r+");
+    }
+  else if (46 <= findid && findid <= 60)
+    {
+      fp = fopen ("stationary.txt", "r+");
+    }
+  int row, col;
+  fscanf (fp, "%d %d", &row, &col);
+  while (fp != NULL)
+    {
+      fscanf (fp, "%d %*s %*d %d", &id, &quantity);
+      if (findid == id)
+	{
+	  if (flag == 1)
+	    {
+	      fseek (fp, -4, SEEK_CUR);
+	      fprintf (fp, "%d\n", quantity + modifyquantity);
+	      break;
+	    }
+	  else
+	    {
+	      fseek (fp, -4, SEEK_CUR);
+	      fprintf (fp, "%d\n", quantity - modifyquantity);
+	      break;
+	    }
+	}
+    }
+  fclose (fp);
+  return;
+}
+
 void
 userlogin (void)
 {
@@ -233,7 +289,8 @@ DISPLAYMENU ()
       struct items *item = NULL;
       int row, col;
       fscanf (subcat, "%d%d", &row, &col);
-      for (int j = 0; j < row; j++)
+      int j;
+      for ( j = 0; j < row; j++)
 	{
 	  fscanf (subcat, "%d%s%d%d", &id, name, &cost, &quan);
 	  item = InsertitemMenu (item, id, name, cost, quan);
@@ -312,8 +369,8 @@ MAINMENU ()
 	  printf ("Invalid choice\n");
 	  break;
 	}
-      DISPLAYBILL ();
     }
+    DISPLAYBILL ();
   return 0;
 }
 
@@ -344,7 +401,7 @@ AddItemsFromCart ()
   scanf ("%d", &add_quantity);
   traverse_to_add (id, add_quantity);
   traverse ();
-
+  ModifyFile (id, add_quantity, 0);
 }
 
 struct items *
@@ -415,19 +472,85 @@ AddItemsFromMenu (int id, struct items *item)
 	}
     }
   insert_cart (temp->id, temp->name, quantity, temp->cost);
+  ModifyFile (id, quantity, 0);
   traverse ();
 }
 
-void
-DeleteItemsFromCart ()
+int
+getIndex (int ID)
 {
+  struct cart *q;
+  q = customer;
+  int count = 0;
+  while (q != NULL)
+    {
+      count++;
+      if (q->ProductID == ID)
+	{
+	  printf ("Yeah\n");
+	  ModifyFile (ID, q->quantity, 1);
+	  break;
+	}
+      q = q->link;
+    }
+  return count - 1;
+}
 
+void
+DeleteItemsFromCart (int position)
+{
+  struct cart *temp = customer;
+  if (customer == NULL)
+    return;
+  if (position == 0)
+    {
+      customer = temp->link;
+      free (temp);
+      return;
+    }
+  for (int i = 0; temp != NULL && i < position - 1; i++)
+    temp = temp->link;
+  if (temp == NULL || temp->link == NULL)
+    return;
+  struct cart *link = temp->link->link;
+  free (temp->link);
+  temp->link = link;
+}
+
+void
+traverse_to_delete (int id, int del_quantity)
+{
+  struct cart *temp;
+  temp = customer;
+  while (temp != NULL)
+    {
+      if (temp->ProductID == id)
+	{
+	  if (temp->quantity > del_quantity)
+	    temp->quantity -= del_quantity;
+	  else
+	    {
+	      printf
+		("Sorry! changes can not be made as you tried to delete more than you have!\n");
+	    }
+	}
+      temp = temp->link;
+    }
+  ModifyFile (id, del_quantity, 1);
 }
 
 void
 DeleteQuantityFromCart ()
 {
-
+  int del_quantity;
+  int id;
+  traverse ();
+  printf ("Enter the ID of the product for which you want to delete: ");
+  scanf ("%d", &id);
+  printf ("Enter the quantity to be deleted: ");
+  scanf ("%d", &del_quantity);
+  traverse_to_delete (id, del_quantity);
+  traverse ();
 }
 
 void
@@ -460,6 +583,7 @@ ADD ()
 void
 DELETE ()
 {
+  int ID;
   while (1)
     {
       int delete_choice;
@@ -469,7 +593,13 @@ DELETE ()
       switch (delete_choice)
 	{
 	case 1:
-	  DeleteItemsFromCart ();
+	  traverse ();
+	  printf ("Enter the ID of the Product to be deleted: ");
+	  scanf ("%d", &ID);
+	  int id = getIndex (ID);
+	  printf ("%d", id);
+	  DeleteItemsFromCart (id);
+	  traverse ();
 	  break;
 	case 2:
 	  DeleteQuantityFromCart ();
@@ -487,7 +617,16 @@ DELETE ()
 void
 DISPLAYBILL ()
 {
-
+  struct cart *temp = customer;
+  int total = 0;
+  while (temp != NULL)
+    {
+      printf ("%d  %s  %d %d\n", temp->ProductID, temp->ProductName,
+	      temp->cost, temp->quantity);
+      total += (temp->cost * temp->quantity);
+      temp = temp->link;
+    }
+  printf ("\n%d\n", total);
 }
 
 int
